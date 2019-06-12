@@ -106,7 +106,7 @@
          real :: qm, sigvz, sigz
          real :: bcx, bcy, bcz, alphax, alphay, betax, betay
          real :: emitx, emity
-         real :: gamma,np
+         real :: cx1,cx2,cx3,cy1,cy2,cy3,gamma,np
          real, dimension(:), allocatable :: fz, z
          logical :: quiet
 
@@ -571,7 +571,7 @@
          integer :: npf,npx,npy,npz,npmax
          real :: qm,sigx,sigy,sigz,bcx,bcy,bcz,sigvz
          real, dimension(2) :: alpha, beta, emit
-         real :: gamma,np
+         real :: cx1,cx2,cx3,cy1,cy2,cy3,gamma,np
          logical :: quiet, evol
          real :: min, max, cwp, n0
          real :: alx, aly, alz, dx, dy, dz
@@ -620,6 +620,16 @@
          call input%get(trim(s1)//'.q',qm)
          call input%get(trim(s1)//'.sigmaz',sigz)
          call input%get(trim(s1)//'.sigma_vz',sigvz)
+         
+!     TWISS_L mod
+         call input%get(trim(s1)//'.centroid_x(1)',cx1)
+         call input%get(trim(s1)//'.centroid_x(2)',cx2)
+         call input%get(trim(s1)//'.centroid_x(3)',cx3)
+         call input%get(trim(s1)//'.centroid_y(1)',cy1)
+         call input%get(trim(s1)//'.centroid_y(2)',cy2)
+         call input%get(trim(s1)//'.centroid_y(3)',cy3)
+!     END TWISS_L mod
+
          call input%get(trim(s1)//'.alpha(1)',alpha(1))
          call input%get(trim(s1)//'.alpha(2)',alpha(2))
          call input%get(trim(s1)//'.beta(1)',beta(1))
@@ -631,6 +641,22 @@
          call input%get(trim(s1)//'.peak_density',np)
          call input%get(trim(s1)//'.npmax',npmax)
          call input%get(trim(s1)//'.evolution',evol)
+         
+!     TWISS_L mod
+         call input%get(trim(s1)//'.piecewise_fz',this%fz)
+         call input%get(trim(s1)//'.piecewise_z',this%z)
+         sumz = 0.0
+         do ii = 2, size(this%z)
+            if (this%z(ii)<=this%z(ii-1)) then
+               write (erstr,*) 'Piecewise_z is not monotonically increasing'
+               call this%err%equit(class//sname//erstr)
+               return
+            end if
+            sumz = sumz + (this%fz(ii) + this%fz(ii-1))*&
+            &(this%z(ii) - this%z(ii-1))*0.5
+         end do
+         this%z = this%z/dz
+!     END TWISS_L mod
 
          this%npf = npf
          this%npx = npx
@@ -639,7 +665,8 @@
          this%npmax = npmax
          sigx = sqrt(beta(1)*emit(1)/gamma)
          sigy = sqrt(beta(2)*emit(2)/gamma)
-         qm = qm/abs(qm)*abs(np)*(2*3.1415926535897932)**1.5*sigx*sigy*sigz
+!         qm = qm/abs(qm)*abs(np)*(2*3.1415926535897932)**1.5*sigx*sigy*sigz
+         qm = qm/abs(qm)*abs(np)*(2*3.1415926535897932)**1.5*sigx*sigy*sumz
          qm = qm/dx/dy/dz
          qm = qm/npx
          qm = qm/npy
@@ -648,7 +675,7 @@
          this%bcx = bcx/dx
          this%bcy = bcy/dy
          this%bcz = bcz/dz
-         this%sigz = sigz/dz
+!         this%sigz = sigz/dz
          this%sigvz = sigvz
          this%alphax = alpha(1)
          this%alphay = alpha(2)
@@ -656,6 +683,14 @@
          this%betay = beta(2)/dy
          this%emitx = emit(1)/dx
          this%emity = emit(2)/dy
+!     TWISS_L mod
+         this%cx1 = cx1*dz*dz/dx
+         this%cx2 = cx2*dz/dx
+         this%cx3 = cx3/dx
+         this%cy1 = cy1*dz*dz/dy
+         this%cy2 = cy2*dz/dy
+         this%cy3 = cy3/dy
+!     END TWISS_L mod
          this%gamma = gamma
          this%np = np
          this%quiet = quiet
@@ -685,6 +720,12 @@
          real :: sigz, x0, y0, z0
          real :: alphax, betax, emitx
          real :: alphay, betay, emity
+         
+!     TWISS_L
+         real, dimension(3) :: cx, cy
+         real, dimension(:), allocatable :: zf
+!     END TWISS_L
+
          real, dimension(4) :: edges
          integer, dimension(2) :: noff
          integer :: nps=1
@@ -695,25 +736,65 @@
          call this%err%werrfl2(class//sname//' started')
          
          npx = this%npx; npy = this%npy; npz = this%npz
+!     TWISS_L
+         nzf = size(this%z)
+!     END TWISS_L
          nx = fd%getnd1(); ny = fd%getnd2(); nz = fd%getnd3()
+         if ((this%z(1)>=nz) .or. (this%z(nzf)<=0)) then
+            npp = 0
+            return
+         end if
          ipbc = this%sp%getpsolver()
          pt => part3d
-         sigz = this%sigz; vtz = this%sigvz
+!         sigz = this%sigz
+         vtz = this%sigvz
          vdx = 0.0; vdy = 0.0; vdz = this%gamma
          alphax = this%alphax; alphay = this%alphay
          betax = this%betax; betay = this%betay
          emitx = this%emitx; emity = this%emity
+!     TWISS_L
+         cx = (/this%cx1,this%cx2,this%cx3/)
+         cy = (/this%cy1,this%cy2,this%cy3/)
+!     END TWISS_L
          x0 = this%bcx; y0 = this%bcy; z0 = this%bcz
          lquiet = this%quiet
          idimp = size(part3d,1); npmax = size(part3d,2)
          noff = fd%getnoff()
          edges(1) = noff(1); edges(3) = noff(2)
          edges(2) = edges(1) + fd%getnd2p()
-         edges(4) = edges(3) + fd%getnd3p()         
+         edges(4) = edges(3) + fd%getnd3p()
          
-         call PRVDIST32_TWISS(pt,this%qm,edges,npp, nps, alphax,alphay,   &
-         &betax,betay, emitx,emity,sigz,vdx,vdy,vdz,vtz,npx,npy,npz,idimp,&
-         &npmax,nx,ny,nz,x0,y0,z0,1,1,4,ierr,vdz,lquiet)
+!     TWISS_L
+
+         allocate(zf(nz))
+         zf = 0.0   
+         do i = 1, nz
+            do j = 2, nzf
+               if ((i>=this%z(j-1)) .and. (i<this%z(j))) then
+                  zf(i) = this%fz(j) + (this%fz(j-1)-this%fz(j))/&
+                  &(this%z(j-1)-this%z(j))*(real(i)-this%z(j))
+                  exit
+               end if
+            end do
+         end do
+         
+
+         
+!         call PRVDIST32_TWISS(pt,this%qm,edges,npp, nps, alphax,alphay,&
+!         &betax,betay,sigz,emitx,emity,vdx,vdy,vdz,vtz,npx,npy,npz,idimp,&
+!         &npmax,nx,ny,nz,x0,y0,z0,1,1,4,ierr,vdz,lquiet)
+
+!        NOTES on call: 
+!        - dp in part3d is df in fdist3d_class.
+!        - this call must match the parameter list in the part3d_lib(77)
+!        - cx, cy are the only *new* variables and must be declared in part3d_lib.f03
+
+         call PRVDIST32_TWISS_L(pt,this%qm,edges,npp, nps, alphax,alphay,&
+         &betax,betay,sigz,emitx,emity,gamma, x0,y0,z0,vtz,vdx,vdy,vdz,&
+         &cx,cy,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
+         &npmax,1,1,4,zf,lquiet,ierr)
+         
+
 
          ! call PRVDIST32_RANDOM(pt,this%qm,edges,npp,nps,vtx,vty,vtz,vdx,vdy,&
          ! &vdz,npx,npy,npz,nx,ny,nz,ipbc,idimp,npmax,1,1,4,sigx,sigy,sigz,&
