@@ -11,4 +11,5 @@ Please feel free to join in our email list [quickpic-users-developers](https://g
 
 * [Installation](https://github.com/UCLA-Plasma-Simulation-Group/QuickPIC-OpenSource/wiki/Install-QuickPIC)
 * [Input file](https://github.com/UCLA-Plasma-Simulation-Group/QuickPIC-OpenSource/wiki/Input-File-for-QuickPIC)
+* [NEW Beam profile 1](https://github.com/taperera/QuickPIC-OpenSource/wiki/Twiss-profile-in-Input-File)
 * [Developer Guide](https://ucla-plasma-simulation-group.github.io/QuickPIC-OpenSource/) 
