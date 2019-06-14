@@ -99,11 +99,11 @@
       end type fdist3d_001
 !
       type, extends(fdist3d) :: fdist3d_002
-! Twiss parameter and Gaussian in z (the same particle charge)
+! Twiss parameter and Piecewise Longitudinal in z (the same particle charge)
          private
 
          integer :: npx, npy, npz
-         real :: qm, sigvz, sigz
+         real :: qm, sigvz
          real :: bcx, bcy, bcz, alphax, alphay, betax, betay
          real :: emitx, emity
          real :: cx1,cx2,cx3,cy1,cy2,cy3,gamma,np
@@ -618,7 +618,7 @@
          call input%get(trim(s1)//'.np(2)',npy)
          call input%get(trim(s1)//'.np(3)',npz)
          call input%get(trim(s1)//'.q',qm)
-         call input%get(trim(s1)//'.sigmaz',sigz)
+!         call input%get(trim(s1)//'.sigmaz',sigz)
          call input%get(trim(s1)//'.sigma_vz',sigvz)
          
 !     TWISS_L mod
