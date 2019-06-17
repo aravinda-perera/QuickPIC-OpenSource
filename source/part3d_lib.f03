@@ -4,7 +4,7 @@
       module part3d_lib
          
       implicit none
-
+      
 !
       interface
          subroutine PRVDIST32_TWISS(part,qm,edges,npp,nps,alpha_x,alpha_y,&
@@ -24,24 +24,20 @@
       end interface
 !
       interface
-!         subroutine PRVDIST32_TWISS_L(part,qm,edges,npp,nps,alpha_x,alpha_y,&
-!         &beta_x,beta_y,emt_x,emt_y,sigz,vdx,vdy,vdz,vtz,npx,npy,npz,idimp,&
-!         &npmax, nx, ny,nz,x0,y0,z0,mblok,nblok,idps,ierr,gamma,lquiet)
-         subroutine PRVDIST32_TWISS_L(part,qm,edges,npp,nps,alpha_x,alpha_y,&
-	     &beta_x,beta_y,emt_x,emt_y,gamma,x0,y0,z0,&
+         subroutine PRVDIST32_TWISS_PW(part,qm,edges,npp,nps,alpha_x,alpha_y,&
+         &beta_x,beta_y,emt_x,emt_y,gamma,x0,y0,z0,&
          &vtz,vdx,vdy,vdz,cx,cy,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
          &npmax,mblok,nblok,idps,dp,lquiet,ierr)
          implicit none
          integer, intent(in) :: npmax,nblok,npx,npy,npz,idimp,nx,ny,nz,i&
-         &dps,mblok
+         &dps,mblok,ipbc
          integer, intent(inout) :: nps,npp,ierr
-         real, intent(in) :: qm,sigz,x0,y0,z0,edges,vtz,vdx,vdy,vdz,gamma
+         real, intent(in) :: qm,x0,y0,z0,cx,cy,edges,vtz,vdx,vdy,vdz,gamma,dp
          real, intent(in) :: alpha_x, alpha_y, beta_x, beta_y, emt_x, emt_y
          real, intent(inout) :: part
          logical, intent(in) :: lquiet
          dimension part(idimp,npmax,nblok)
          dimension edges(idps,nblok)
-!         new things, dp and cx and cy
          dimension dp(nz)
          dimension cx(0:2),cy(0:2)
          end subroutine
@@ -55,7 +51,7 @@
          integer, intent(in) :: npmax,nblok,npx,npy,npz,idimp,nx,ny,nz,i&
          &dps,mblok,ipbc
          integer, intent(inout) :: nps,npp,ierr
-         real, intent(in) :: qm,sigx,sigy,x0,y0,z0,cx,cy,edges,vtx,vty&
+         real, intent(in) :: qm,sigx,sigy,cx,cy,x0,y0,z0,edges,vtx,vty&
          &,vtz,vdx,vdy,vdz,dp
          real, intent(inout) :: part
          logical, intent(in) :: lquiet

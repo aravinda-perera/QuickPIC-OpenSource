@@ -112,7 +112,7 @@ c  generate velocity
 
         tvtx = tvtx - gamma*alpha_x/beta_x*(tempx-x0)
         tvty = tvty - gamma*alpha_y/beta_y*(tempy-y0)
-!        tvtz = sqrt(tvtz*tvtz-1-tvtx*tvtx-tvty*tvty)
+c        tvtz = sqrt(tvtz*tvtz-1-tvtx*tvtx-tvty*tvty)
         do 110 mz = 1, nblok
         moff = mblok*(mz - 1)
         do 100 my = 1, mblok
@@ -191,8 +191,8 @@ c process errors
       return
       end
 c-----------------------------------------------------------------------
-      subroutine PRVDIST32_TWISS_L(part,qm,edges,npp,nps,alpha_x,alpha_y,
-	 1beta_x,beta_y,emt_x,emt_y,gamma,x0,y0,z0,
+      subroutine PRVDIST32_TWISS_PW(part,qm,edges,npp,nps,alpha_x,
+     1alpha_y,beta_x,beta_y,emt_x,emt_y,gamma,x0,y0,z0,
      2vtz,vdx,vdy,vdz,cx,cy,npx,npy,npz,nx,ny,nz,ipbc,idimp,
      3npmax,mblok,nblok,idps,dp,lquiet,ierr)
 c new quiet start
@@ -276,7 +276,6 @@ c Twiss has extras: alpha_x, alpha_y, beta_x, beta_y, emt_x, emt_y,
 c  gamma that need to be passed here as arguments
 c -----
       ierr = 0
-
       cdth = sqrt(2.0)/2.0
       sdth = sqrt(2.0)/2.0
       
@@ -292,6 +291,8 @@ c -----
 c     Twiss parameters to sigma, sigmaprime      
       sigx = sqrt(beta_x*emt_x/gamma)
       sigy = sqrt(beta_y*emt_y/gamma)
+      
+      
       vtx = emt_x/sigx
       vty = emt_y/sigy
       
@@ -311,7 +312,7 @@ c     Twiss parameters to sigma, sigmaprime
       l = npz
       do while (j<npx)
       k = 0
-      do while (k<npy)
+      do while (k<npy) 
       l = l - npz
       do while (l<npz)
   495    if (cnt<=0) then
@@ -328,27 +329,25 @@ c     Twiss parameters to sigma, sigmaprime
          zi = zi+1
         dpi = dp(zi)*zs + dp(zi+1)*zf    
         if (u<=dpi) then  
-c particle is accepted        
-
+C particle is accepted        
   20    tempx = x0+sigx*ranorm()
         if (tempx>=(borderx) .or. tempx<=borderlx) goto 20
-
+ 
   30    tempy = y0+sigy*ranorm()
         if (tempy>=(bordery) .or. tempy<=borderly) goto 30
-
+        
+        
 c  check if particle belongs to this partition
-             do m = 1, nblok
+             do m = 1, nblok 
               if ((tempy<edges(2,m)) .and. (tempy>edges(1,m)) .and.     &
      & (tempz<edges(4,m)) .and. (tempz>edges(3,m))) then  
                 tvtx = vtx*ranorm()
                 tvty = vty*ranorm()
                 tvtz = vtz*ranorm() + vdz
                 tvtz = sqrt(tvtz*tvtz-1-tvtx*tvtx-tvty*tvty)
-                
 c               Twiss parameters to phase-space rotation
                 tvtx = tvtx - gamma*alpha_x/beta_x*(tempx-x0)
                 tvty = tvty - gamma*alpha_y/beta_y*(tempy-y0)
-                
                 if (npt.le.npmax) then        
                      npt = npp(m) + 1
                      part(3,npt,m) = tempz
@@ -366,7 +365,7 @@ c	                  add centroid shifts for x and y
                      npp(m) = npt
                 else
                      ierr = ierr + 1
-                endif     
+                endif
 c quiet start
                 if (lquiet) then
                    if (npt.le.npmax) then

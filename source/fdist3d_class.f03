@@ -575,7 +575,9 @@
          logical :: quiet, evol
          real :: min, max, cwp, n0
          real :: alx, aly, alz, dx, dy, dz
-         integer :: indx, indy, indz         
+         integer :: indx, indy, indz
+         integer :: ii
+         real :: sumz  
          character(len=20) :: sn,s1
          character(len=18), save :: sname = 'init_fdist3d_002:'
          
@@ -598,7 +600,7 @@
          call input%get('simulation.box.x(2)',max)
          call input%get(trim(s1)//'.center(1)',bcx)
          bcx = bcx - min
-         alx = (max-min) 
+         alx = (max-min)
          dx=alx/real(2**indx)
          call input%get('simulation.box.y(1)',min)
          call input%get('simulation.box.y(2)',max)
@@ -612,6 +614,7 @@
          bcz = bcz -min
          alz = (max-min) 
          dz=alz/real(2**indz)
+
 
          call input%get(trim(s1)//'.profile',npf)
          call input%get(trim(s1)//'.np(1)',npx)
@@ -683,6 +686,8 @@
          this%betay = beta(2)/dy
          this%emitx = emit(1)/dx
          this%emity = emit(2)/dy
+         this%gamma = gamma
+
 !     TWISS_L mod
          this%cx1 = cx1*dz*dz/dx
          this%cx2 = cx2*dz/dx
@@ -691,7 +696,7 @@
          this%cy2 = cy2*dz/dy
          this%cy3 = cy3/dy
 !     END TWISS_L mod
-         this%gamma = gamma
+         
          this%np = np
          this%quiet = quiet
          this%evol = evol
@@ -717,7 +722,7 @@
          real, dimension(:,:), pointer :: pt => null()
          integer :: npx, npy, npz, nx, ny, nz, ipbc
          real :: vtz, vdx, vdy, vdz
-         real :: sigz, x0, y0, z0
+         real :: x0, y0, z0, gamma
          real :: alphax, betax, emitx
          real :: alphay, betay, emity
          
@@ -731,6 +736,7 @@
          integer :: nps=1
          logical :: lquiet = .false.
          integer :: idimp, npmax, ierr = 0
+         integer :: nzf, i, j
          character(len=18), save :: sname = 'dist3d_002:'
 
          call this%err%werrfl2(class//sname//' started')
@@ -777,7 +783,6 @@
                end if
             end do
          end do
-         
 
          
 !         call PRVDIST32_TWISS(pt,this%qm,edges,npp, nps, alphax,alphay,&
@@ -789,19 +794,19 @@
 !        - this call must match the parameter list in the part3d_lib(77)
 !        - cx, cy are the only *new* variables and must be declared in part3d_lib.f03
 
-         call PRVDIST32_TWISS_L(pt,this%qm,edges,npp, nps, alphax,alphay,&
-         &betax,betay,sigz,emitx,emity,gamma, x0,y0,z0,vtz,vdx,vdy,vdz,&
+         call PRVDIST32_TWISS_PW(pt,this%qm,edges,npp,nps,alphax,alphay,&
+         &betax,betay,emitx,emity,vdz,x0,y0,z0,vtz,vdx,vdy,vdz,&
          &cx,cy,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
          &npmax,1,1,4,zf,lquiet,ierr)
          
 
 
-         ! call PRVDIST32_RANDOM(pt,this%qm,edges,npp,nps,vtx,vty,vtz,vdx,vdy,&
-         ! &vdz,npx,npy,npz,nx,ny,nz,ipbc,idimp,npmax,1,1,4,sigx,sigy,sigz,&
-         ! &x0,y0,z0,cx,cy,lquiet,ierr)
+!          call PRVDIST32_RANDOM(pt,this%qm,edges,npp,nps,vtx,vty,vtz,vdx,vdy,&
+!          &vdz,npx,npy,npz,nx,ny,nz,ipbc,idimp,npmax,1,1,4,sigx,sigy,sigz,&
+!          &x0,y0,z0,cx,cy,lquiet,ierr)
 
          if (ierr /= 0) then
-            write (erstr,*) 'PRVDIST32_RANDOM error'
+            write (erstr,*) 'PRVDIST32_TWISS_PW error'
             call this%err%equit(class//sname//erstr)
          endif
          
