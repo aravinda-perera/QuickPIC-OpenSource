@@ -264,16 +264,16 @@ c borderlx(yz), lower bound of border, borderx(yz), upper bound.
       integer borderlx,borderly, borderx, bordery, nz1 
       integer cnt
 c ----
-c Things that the piecewise long subroutine needs
+c Things that the piecewise long subroutine needs:
 c (part,qm,edges,npp,nps,x0,y0,z0,sigx,s
 c      1igy,vtx,vty,vtz,vdx,vdy,vdz,cx,cy,npx,npy,npz,nx,ny,nz,ipbc,
 c      idimp,
 c      2npmax,mblok,nblok,idps,dp,lquiet,ierr)
-c Inadditiontotwiss,needs: sigx, sigy, cx, cy, ipbc, dp, vtx, vty
-c to be defined somewhere in subrouine
+c In addition, this needs: sigx, sigy, vtx, vty
+c to be calculated or passed.
 
 c Twiss has extras: alpha_x, alpha_y, beta_x, beta_y, emt_x, emt_y,
-c  gamma that need to be passed here as arguments
+c  gamma(vdz),cx,cy,ipbc,dp, that need to be passed here
 c -----
       ierr = 0
       cdth = sqrt(2.0)/2.0
@@ -372,16 +372,18 @@ c quiet start
                 tempx = tempx - x0
                 tempy = tempy - y0
 
-                tempx0 = cdth*tempx-sdth*tempy
-                tempy0 = sdth*tempx+cdth*tempy
-                tempx = tempx0
-                tempy = tempy0
-
-                tvtx0 = cdth*tvtx-sdth*tvty
-                tvty0 = sdth*tvtx+cdth*tvty
-                tvtx = tvtx0
-                tvty = tvty0
-
+c Refl1: y-axis
+C               tempx0 = cdth*tempx-sdth*tempy
+C               tempy0 = sdth*tempx+cdth*tempy
+C               tempx = tempx0
+C               tempy = tempy0
+C               tvtx0 = cdth*tvtx-sdth*tvty
+C               tvty0 = sdth*tvtx+cdth*tvty
+C               tvtx = tvtx0
+C               tvty = tvty0
+                tempx = -tempx
+                tvtx = -tvtx
+                
                 npt = npp(m) + 1
                 part(3,npt,m) = tempz
                 part(1,npt,m) = tempx+x0+tempxx
@@ -392,15 +394,17 @@ c quiet start
                 part(7,npt,m) = qm 
                 npp(m) = npt                
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                tempx0 = cdth*tempx-sdth*tempy
-                tempy0 = sdth*tempx+cdth*tempy
-                tempx = tempx0
-                tempy = tempy0
-
-                tvtx0 = cdth*tvtx-sdth*tvty
-                tvty0 = sdth*tvtx+cdth*tvty
-                tvtx = tvtx0
-                tvty = tvty0
+c Refl2: x-axis
+C               tempx0 = cdth*tempx-sdth*tempy
+C               tempy0 = sdth*tempx+cdth*tempy
+C               tempx = tempx0
+C               tempy = tempy0
+C               tvtx0 = cdth*tvtx-sdth*tvty
+C               tvty0 = sdth*tvtx+cdth*tvty
+C               tvtx = tvtx0
+C               tvty = tvty0
+                tempy = -tempy
+                tvty = -tvty
                 npt = npp(m) + 1
                 part(3,npt,m) = tempz
                 part(1,npt,m) = tempx+x0+tempxx
@@ -410,15 +414,18 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 part(6,npt,m) = tvtz
                 part(7,npt,m) = qm 
                 npp(m) = npt
-                tempx0 = cdth*tempx-sdth*tempy
-                tempy0 = sdth*tempx+cdth*tempy
-                tempx = tempx0
-                tempy = tempy0
-
-                tvtx0 = cdth*tvtx-sdth*tvty
-                tvty0 = sdth*tvtx+cdth*tvty
-                tvtx = tvtx0
-                tvty = tvty0
+c Refl3: y-axis                
+C               tempx0 = cdth*tempx-sdth*tempy
+C               tempy0 = sdth*tempx+cdth*tempy
+C               tempx = tempx0
+C               tempy = tempy0
+C               tvtx0 = cdth*tvtx-sdth*tvty
+C               tvty0 = sdth*tvtx+cdth*tvty
+C               tvtx = tvtx0
+C               tvty = tvty0
+                tempx = -tempx
+                tvtx = -tvtx
+                
                 npt = npp(m) + 1
                 part(3,npt,m) = tempz
                 part(1,npt,m) = tempx+x0+tempxx
@@ -427,79 +434,9 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 part(5,npt,m) = tvty
                 part(6,npt,m) = tvtz
                 part(7,npt,m) = qm 
-                npp(m) = npt
-                tempx0 = cdth*tempx-sdth*tempy
-                tempy0 = sdth*tempx+cdth*tempy
-                tempx = tempx0
-                tempy = tempy0
-
-                tvtx0 = cdth*tvtx-sdth*tvty
-                tvty0 = sdth*tvtx+cdth*tvty
-                tvtx = tvtx0
-                tvty = tvty0
-                npt = npp(m) + 1
-                part(3,npt,m) = tempz
-                part(1,npt,m) = tempx+x0+tempxx
-                part(2,npt,m) = tempy+y0+tempyy
-                part(4,npt,m) = tvtx
-                part(5,npt,m) = tvty
-                part(6,npt,m) = tvtz
-                part(7,npt,m) = qm 
-                npp(m) = npt
-                tempx0 = cdth*tempx-sdth*tempy
-                tempy0 = sdth*tempx+cdth*tempy
-                tempx = tempx0
-                tempy = tempy0
-
-                tvtx0 = cdth*tvtx-sdth*tvty
-                tvty0 = sdth*tvtx+cdth*tvty
-                tvtx = tvtx0
-                tvty = tvty0
-                npt = npp(m) + 1
-                part(3,npt,m) = tempz
-                part(1,npt,m) = tempx+x0+tempxx
-                part(2,npt,m) = tempy+y0+tempyy
-                part(4,npt,m) = tvtx
-                part(5,npt,m) = tvty
-                part(6,npt,m) = tvtz
-                part(7,npt,m) = qm 
-                npp(m) = npt
-                tempx0 = cdth*tempx-sdth*tempy
-                tempy0 = sdth*tempx+cdth*tempy
-                tempx = tempx0
-                tempy = tempy0
-
-                tvtx0 = cdth*tvtx-sdth*tvty
-                tvty0 = sdth*tvtx+cdth*tvty
-                tvtx = tvtx0
-                tvty = tvty0
-                npt = npp(m) + 1
-                part(3,npt,m) = tempz
-                part(1,npt,m) = tempx+x0+tempxx
-                part(2,npt,m) = tempy+y0+tempyy
-                part(4,npt,m) = tvtx
-                part(5,npt,m) = tvty
-                part(6,npt,m) = tvtz
-                part(7,npt,m) = qm 
-                npp(m) = npt
-                tempx0 = cdth*tempx-sdth*tempy
-                tempy0 = sdth*tempx+cdth*tempy
-                tempx = tempx0
-                tempy = tempy0
-
-                tvtx0 = cdth*tvtx-sdth*tvty
-                tvty0 = sdth*tvtx+cdth*tvty
-                tvtx = tvtx0
-                tvty = tvty0
-                npt = npp(m) + 1
-                part(3,npt,m) = tempz
-                part(1,npt,m) = tempx+x0+tempxx
-                part(2,npt,m) = tempy+y0+tempyy
-                part(4,npt,m) = tvtx
-                part(5,npt,m) = tvty
-                part(6,npt,m) = tvtz
-                part(7,npt,m) = qm 
-                npp(m) = npt
+                npp(m) = npt 
+                
+c 4 particles generated
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                    else
                       ierr = ierr + 1
@@ -510,7 +447,7 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
              enddo 
 
         l = l + 1
-        if (lquiet) l = l + 7
+        if (lquiet) l = l + 3
         endif
       enddo 
       k = k + 1
