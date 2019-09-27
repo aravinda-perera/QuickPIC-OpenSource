@@ -44,6 +44,26 @@
       end interface
 !
       interface
+         subroutine PRVDIST32_BOXCAR_PW(part,qm,edges,npp,nps,alpha_x,alpha_y,&
+         &beta_x,beta_y,emt_x,emt_y,gamma,x0,y0,z0,&
+         &vtz,vdx,vdy,vdz,cx,cy,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
+         &npmax,mblok,nblok,idps,dp,lquiet,ierr)
+         implicit none
+         integer, intent(in) :: npmax,nblok,npx,npy,npz,idimp,nx,ny,nz,i&
+         &dps,mblok,ipbc
+         integer, intent(inout) :: nps,npp,ierr
+         real, intent(in) :: qm,x0,y0,z0,cx,cy,edges,vtz,vdx,vdy,vdz,gamma,dp
+         real, intent(in) :: alpha_x, alpha_y, beta_x, beta_y, emt_x, emt_y
+         real, intent(inout) :: part
+         logical, intent(in) :: lquiet
+         dimension part(idimp,npmax,nblok)
+         dimension edges(idps,nblok)
+         dimension dp(nz)
+         dimension cx(0:2),cy(0:2)
+         end subroutine
+      end interface
+!
+      interface
          subroutine PRVDIST32_RAN_PFL(part,qm,edges,npp,nps,x0,y0,z0,sigx,s&
          &igy,vtx,vty,vtz,vdx,vdy,vdz,cx,cy,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
          &npmax,mblok,nblok,idps,dp,lquiet,ierr)
