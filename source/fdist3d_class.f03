@@ -1414,7 +1414,7 @@
 !          &x0,y0,z0,cx,cy,lquiet,ierr)
 
          if (ierr /= 0) then
-            write (erstr,*) 'PRVDIST32_TWISS_PW error'
+            write (erstr,*) 'PRVDIST32_BOXCAR_PW error'
             call this%err%equit(class//sname//erstr)
          endif
          

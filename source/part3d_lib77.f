@@ -662,9 +662,9 @@ C particle is accepted
         tempphi = pi*(brand(1) - 1.0)
         if (tempr < (a0-d)) then
 c when this is not 1.0,  brand(3) check must be after eif           
-            frphi = 1.0
+            frphi = 1.0 * brand(0)
         else
-c           frphi = cos(2.0 * tempphi)
+c           frphi = cos(2.0 * tempphi) * brand(0)
             
 c-------------------FAST COS 2phi-Error order e-04----------------------------------------
 c Valid for -pi < x < pi. So use tempphi in that range to find
@@ -672,10 +672,12 @@ c cos phi, then use trig identity to find cos 2phi
 
             cosphi = 1.906526E-5 *tempphi**8 - 1.344107E-3 *tempphi**6  &
      &     +4.152230E-2 *tempphi**4 -4.998376E-1*tempphi**2 +9.999710E-1
-            frphi = 2.0 * cosphi**2 - 1.0
+            
+			frphi = (2.0 * cosphi**2 - 1.0)*brand(0)
             
         
-        
+c 			This can afford to be kept here because d is only
+c			possible rejection region. 
             if (brand(3) > frphi) then
                 goto 20
             endif
@@ -684,7 +686,7 @@ c       tempx = x0 + tempr*cos(tempphi)
 c       tempy = y0 + tempr*sin(tempphi)
 
         tempx = x0 + tempr*cosphi
-        tempy = y0 + tempr*sqrt(cosphi**2 - 1.0)
+        tempy = y0 + tempr*sqrt(1.0 - cosphi**2)
         
         
         
