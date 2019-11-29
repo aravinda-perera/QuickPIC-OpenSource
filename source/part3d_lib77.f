@@ -574,7 +574,7 @@ c borderlx(yz), lower bound of border, borderx(yz), upper bound.
       integer borderlx,borderly, borderx, bordery, nz1 
       integer cnt
       real sigr2, sigr, sqrt2, sig2diff, a0, brand(3), d
-      real tempr, tempphi, frphi, cosphi, pi
+      real tempr, tempphi, frphi, cosphi, pi, tempphi2
 c ----
 c Things that the piecewise long subroutine needs:
 c (part,qm,edges,npp,nps,x0,y0,z0,sigx,s
@@ -591,7 +591,7 @@ c -----
       sqrt2 = sqrt(2.0)
       cdth = sqrt2/2.0
       sdth = sqrt2/2.0
-	  pi = 3.141593
+      pi = 3.14159265359
       
       npt = 1
 !      npxyz = npx*npy*npz
@@ -615,17 +615,20 @@ c     Twiss parameters to sigma, sigmaprime
 c   if d = S/a, then equal wall max height = 1
 c   Approximation:  d = sig2diff / a0. 
 c   Full form:
-      d = a0*(1 - sqrt(sqrt(1.0 - (4.0 * sig2diff / a0**2))))
-      
+      if (beta_x*emt_x == beta_y*emt_y) then
+		d = 0.0
+	  else
+		d = a0*(1.0 - sqrt(sqrt(1.0 - (4.0 * sig2diff / a0**2))))
+      end if
       
       vtx = emt_x/sigx
       vty = emt_y/sigy
       
 C   Border checks for bounding square of beam circle
-      borderlx = max((x0-sigr),1.0)
-      borderly = max((y0-sigr),1.0)
-      borderx = min((x0+sigr),float(nx-1)) 
-      bordery = min((y0+sigr),float(ny-1))
+C      borderlx = max((x0-sigr),1.0)
+C      borderly = max((y0-sigr),1.0)
+C      borderx = min((x0+sigr),float(nx-1)) 
+C      bordery = min((y0+sigr),float(ny-1))
 
       nz1 = nz -1
 
@@ -658,33 +661,33 @@ C   Border checks for bounding square of beam circle
             
 C particle is accepted        
   20    call RANDOM_NUMBER(brand)
-        tempr = a0*brand(0)
-        tempphi = pi*(brand(1) - 1.0)
-        if (tempr < (a0-d)) then
-c when this is not 1.0,  brand(3) check must be after eif           
-            frphi = 1.0 * brand(0)
+        tempr = a0*brand(1)
+
+        if (tempr < (a0-d)) then        
+            frphi = 1.0 * brand(1)
         else
-c           frphi = cos(2.0 * tempphi) * brand(0)
+            tempphi = 2.0*pi*(brand(2) - 0.5)
+c           frphi = cos(2.0 * tempphi) * brand(1) // Fast implementation BELOW 
             
-c-------------------FAST COS 2phi-Error order e-04----------------------------------------
+c-------------------FAST COS phi-Error O(E-3)----------------------------------------
+c http://krisgarrett.net/upload/481408/documents/9F5ADB2DA8146659.pdf
 c Valid for -pi < x < pi. So use tempphi in that range to find
 c cos phi, then use trig identity to find cos 2phi
+            
+            tempphi2 = tempphi**2
+			cosphi = -9.92863e-4*tempphi2 + 3.95223e-2
+			cosphi = tempphi2*cosphi - 4.96248e-1
+			cosphi = tempphi2*cosphi + 9.98987e-1
+			
+c-------------------FAST COS phi-Error O(E-3)----------------------------------------
+     
+            frphi = (2.0 * cosphi**2 - 1.0)*brand(1)
+        endif 
 
-            cosphi = 1.906526E-5 *tempphi**8 - 1.344107E-3 *tempphi**6  &
-     &     +4.152230E-2 *tempphi**4 -4.998376E-1*tempphi**2 +9.999710E-1
-            
-			frphi = (2.0 * cosphi**2 - 1.0)*brand(0)
-            
+        if (brand(3) > frphi) then
+            goto 20
+        endif
         
-c 			This can afford to be kept here because d is only
-c			possible rejection region. 
-            if (brand(3) > frphi) then
-                goto 20
-            endif
-        endif   
-c       tempx = x0 + tempr*cos(tempphi)
-c       tempy = y0 + tempr*sin(tempphi)
-
         tempx = x0 + tempr*cosphi
         tempy = y0 + tempr*sqrt(1.0 - cosphi**2)
         
