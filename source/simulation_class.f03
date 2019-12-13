@@ -545,6 +545,9 @@
             case (12)
                allocate(fdist2d_012::this%pf(i)%p)
                call this%pf(i)%p%new(input,i)
+			case (13)
+               allocate(fdist2d_013::this%pf(i)%p)
+               call this%pf(i)%p%new(input,i)
 ! Add new distributions right above this line
             case default
                write (erstr,*) 'Invalid species profile number:', npf
