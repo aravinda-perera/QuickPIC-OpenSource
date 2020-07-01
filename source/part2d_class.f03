@@ -125,6 +125,7 @@
          this%xdim = xdim
          npmax = pf%getnpmax()
          this%npmax = npmax
+! This value of nbmax is never used again (!)
          nbmax = max(int(0.01*npmax),100)
          this%nbmax = nbmax
          noff = fd%getnoff()
@@ -148,9 +149,12 @@
          endif
          
          xtras = 10
-!    
+!   Safety for nppmx in case it is empty
+		 if (this%nppmx < 1) then
+			this%nppmx = 10
+		 endif
 ! allocate vector particle data
-         this%nppmx0 = (1.0 + xtras)*this%nppmx
+         this%nppmx0 = xtras*this%nppmx
          this%ntmaxp = xtras*this%nppmx
          this%npbmx = xtras*this%nppmx
          this%nbmaxp = 0.25*mx1*this%npbmx

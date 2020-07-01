@@ -54,6 +54,7 @@
       isum = isum + ist
    30 continue
       nppmx = npx
+	  
 ! check for errors
       if (ierr.gt.0) then
          irc = ierr

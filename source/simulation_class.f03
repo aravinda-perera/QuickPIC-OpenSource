@@ -430,6 +430,9 @@
             case (6)
                allocate(fdist3d_006::this%pf(i)%p)
                call this%pf(i)%p%new(input,i)
+            case (7)
+               allocate(fdist3d_007::this%pf(i)%p)
+               call this%pf(i)%p%new(input,i)
             case (100)
                allocate(fdist3d_100::this%pf(i)%p)
                call this%pf(i)%p%new(input,i)
@@ -545,7 +548,7 @@
             case (12)
                allocate(fdist2d_012::this%pf(i)%p)
                call this%pf(i)%p%new(input,i)
-			case (13)
+            case (13)
                allocate(fdist2d_013::this%pf(i)%p)
                call this%pf(i)%p%new(input,i)
 ! Add new distributions right above this line
@@ -605,10 +608,14 @@
             call this%err%werrfl0(erstr)
             
             do m = 1, this%nbeams
+    ! TAP2019 - beam charge deposit - tags not needed if no deposit
+             ! if this%tstep > this%beams%beam(m)%tstart
                this%tag_bq(m,1) = ntag()
                this%tag_bq(m,2) = ntag()
                call this%beams%beam(m)%qdp(this%id_bq(m,1),this%id_bq(m,2),&
                &this%id_bq(m,3),this%tag_bq(m,1),this%tag_bq(m,2))
+              ! end if
+    ! /TAP2019 --- Stub for injection implementation, Internal if
             end do
    
             do l =  1, this%nspecies
@@ -732,14 +739,16 @@
             call this%fields%psit%psend(this%tag(6),this%id(8))
             call MPI_WAIT(this%id(9),istat,ierr)
             call this%fields%bxyz%psend(this%tag(7),this%id(9))
-      
+! TAP2019 - beam push   - tags not needed if no push   
             do m = 1, this%nbeams
                this%tag_beam(m) = ntag()
+               ! if this%tstep > this%beams%beam(m)%tstart
                call MPI_WAIT(this%id_beam(m),istat,ierr)
                call this%beams%beam(m)%push(this%fields%bexyz,this%fields%bbxyz,this%dex,this%dxi,&
                &this%tag_beam(m),this%tag_beam(m),this%id_beam(m))
+               ! end if
             end do
-            
+! /TAP2019 --- Internal if            
             call this%diag_simulation()
 
             do m = 1, this%nspecies                       
