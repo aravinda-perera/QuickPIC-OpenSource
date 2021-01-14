@@ -14,7 +14,7 @@
       private
 
       public :: fdist2d, fdist2d_000, fdist2d_010, fdist2d_011, fdist2d_012
-	  public :: fdist2d_013
+	  public :: fdist2d_013, fdist2d_014
 
       type, abstract :: fdist2d
 
@@ -144,6 +144,24 @@
          procedure, private :: dist2d => dist2d_013
                   
       end type fdist2d_013
+!
+      type, extends(fdist2d) :: fdist2d_014
+! Multiple hollow channels in a hexagonal grid
+         private
+! xppc, yppc = particle per cell in x and y directions
+         integer :: xppc, yppc
+         real :: qm, den
+         real :: cx, cy
+         real :: inr, outr, nrings
+		 integer :: hexgrid
+         character(len=:), allocatable :: long_prof
+         real, dimension(:), allocatable :: s, fs
+                          
+         contains
+         procedure, private :: init_fdist2d => init_fdist2d_014
+         procedure, private :: dist2d => dist2d_014
+                  
+      end type fdist2d_014
 !
       character(len=10), save :: class = 'fdist2d:'
       character(len=128), save :: erstr
@@ -1172,4 +1190,503 @@
 
       end subroutine dist2d_013
 !
+!
+      subroutine init_fdist2d_014(this,input,i)
+      
+         implicit none
+         
+         class(fdist2d_014), intent(inout) :: this
+         type(input_json), intent(inout), pointer :: input
+         integer, intent(in) :: i
+! local data
+         integer :: npf,xppc,yppc,npmax,indx,indy
+         real :: qm, den
+         real :: cx, cy
+         real :: inr, outr, nrings
+		 integer :: arraytype ! 0 for circle, 1 for hex
+         real :: min, max
+         real :: alx, aly, dx, dy
+         character(len=20) :: sn,s1
+         character(len=18), save :: sname = 'init_fdist2d_014:'
+         
+         this%sp => input%sp
+         this%err => input%err
+         this%p => input%pp
+
+         call this%err%werrfl2(class//sname//' started')
+         write (sn,'(I3.3)') i
+         s1 = 'species('//trim(sn)//')'
+         call input%get('simulation.indx',indx)
+         call input%get('simulation.indy',indy)
+         call input%get('simulation.box.x(1)',min)
+         call input%get('simulation.box.x(2)',max)
+         call input%get(trim(s1)//'.center(1)',cx)
+         cx = cx - min
+         alx = (max-min) 
+         dx=alx/real(2**indx)
+         call input%get('simulation.box.y(1)',min)
+         call input%get('simulation.box.y(2)',max)
+         call input%get(trim(s1)//'.center(2)',cy)
+         cy = cy - min
+         aly = (max-min) 
+         dy=aly/real(2**indy)
+         call input%get(trim(s1)//'.profile',npf)
+         call input%get(trim(s1)//'.ppc(1)',xppc)
+         call input%get(trim(s1)//'.ppc(2)',yppc)
+         call input%get(trim(s1)//'.q',qm)
+         call input%get(trim(s1)//'.density',den)
+         call input%get(trim(s1)//'.inner_radius',inr)
+         call input%get(trim(s1)//'.outer_radius',outr)
+         call input%get(trim(s1)//'.n_rings',nrings)
+		 call input%get(trim(s1)//'.array_type',arraytype)
+         npmax = xppc*yppc*(2**indx)*(2**indy)/this%p%getlnvp()*4
+         call input%get(trim(s1)//'.longitudinal_profile',this%long_prof)
+         if (trim(this%long_prof) == 'piecewise') then
+            call input%get(trim(s1)//'.piecewise_density',this%fs)
+            call input%get(trim(s1)//'.piecewise_s',this%s)
+         end if
+
+         this%npf = npf
+         this%xppc = xppc
+         this%yppc = yppc
+         this%qm = qm
+         this%den = den
+         this%npmax = npmax
+         this%cx = cx/dx
+         this%cy = cy/dy
+         this%inr = inr/dx
+         this%outr = outr/dx
+		 this%nrings = nrings
+		 this%hexgrid = arraytype
+		
+
+         call this%err%werrfl2(class//sname//' ended')
+
+      end subroutine init_fdist2d_014
+!
+      subroutine dist2d_014(this,part2d,npp,fd,s)
+         implicit none
+         class(fdist2d_014), intent(inout) :: this
+         real, dimension(:,:), pointer, intent(inout) :: part2d
+         integer, intent(inout) :: npp
+         class(ufield2d), intent(in), pointer :: fd
+         real, intent(in) :: s 
+! local data
+         character(len=18), save :: sname = 'dist2d_014:'
+         real, dimension(:,:), pointer :: pt => null()
+         integer :: nps, nx, ny, noff, xppc, yppc, i, j
+         integer :: ix, iy
+         real :: qm, x, y
+         real :: cx, cy
+         real :: inr, outr, inr2, outr2, nrings, a   
+		 real :: irt3, irt3o2, rt3o2, diam, y_sec, x_sec
+		 real :: xc, yc, xh, yh, xch, radmod
+		 real :: cxh, cyh, cxc, cyc, nringsdiam2, nr15d2
+		 integer :: tri, hexgrid
+		 integer :: Nxh, Nyh 
+         real :: den_temp
+         integer :: prof_l
+
+         call this%err%werrfl2(class//sname//' started')
+         
+         nx = fd%getnd1p(); ny = fd%getnd2p(); noff = fd%getnoff()
+         xppc = this%xppc; yppc = this%yppc
+         den_temp = 1.0
+         if (trim(this%long_prof) == 'piecewise') then
+            prof_l = size(this%fs)
+            if (s<this%s(1) .or. s>this%s(prof_l)) then
+               write (erstr,*) 'The s is out of the bound!'
+               call this%err%equit(class//sname//erstr)
+               return
+            end if
+            do i = 2, prof_l
+               if (this%s(i) < this%s(i-1)) then
+                  write (erstr,*) 's is not monotonically increasing!'
+                  call this%err%equit(class//sname//erstr)
+                  return
+               end if
+               if (s<=this%s(i)) then
+                  den_temp = this%fs(i-1) + (this%fs(i)-this%fs(i-1))/&
+                  &(this%s(i)-this%s(i-1))*(s-this%s(i-1))
+                  exit
+               end if
+            end do
+         end if
+         qm = den_temp*this%den*this%qm/abs(this%qm)/real(xppc)/real(yppc)
+         cx = this%cx; cy = this%cy
+		 inr = this%inr; outr = this%outr
+		 nrings = this%nrings
+		 hexgrid = this%hexgrid
+		 
+		 rt3o2 = 0.86602540378
+		 irt3o2 = 1.0/rt3o2
+		 irt3 = 0.5*irt3o2
+		 
+		 diam = outr * 2.0
+         inr2 = inr**2
+		 outr2 = outr**2
+		 nringsdiam2 = (nrings*diam)**2
+		 nr15d2 = (nrings*diam + outr)**2
+		 
+		 a = irt3o2 * outr
+
+		 
+         nps = 1
+         pt => part2d
+! initialize the particle positions
+         if (noff < ny) then
+         do i=2, nx-1
+            do j=2, ny
+               do ix = 0, xppc-1
+                  do iy=0, yppc-1
+                     x = (ix + 0.5)/xppc + i - 1
+                     y = (iy + 0.5)/yppc + j - 1 + noff
+					 
+
+					 ! cart from window center
+					 xc = (x - cx)
+					 yc = (y - cy)
+					 
+					 ! Main routine (case 1 of 3)
+					 
+					 ! Find center of hexagonal tile this particle belongs to
+					 
+					 ! rough estimate of center y (axial coordinates)
+					 yh = irt3o2*yc
+					 Nyh = NINT(yh/diam)
+					 cyh = Nyh*diam
+					 cyc = cyh*rt3o2
+					
+					 ! rough estimate of center x (axial coordinates)
+					 xh = xc + yh/2.0
+					 xch = xc + irt3*cyc
+					 Nxh = NINT(xch/diam)
+					 cxh = Nxh * diam
+					 cxc = cxh - 0.5*cyh
+					 
+					 ! Correction for upper and lower circle tips
+					 x_sec = xch/outr
+					 x_sec = x_sec - FLOOR(x_sec*0.5)*2.0 ! cart. distance from nearest center towards origin
+					 y_sec = MOD(ABS(yc/(rt3o2*outr)), 2.0) ! cart. distance from nearest center towards origin
+					 
+					 tri = 0
+					if ((abs(y_sec - 0.5) <= 0.5 .AND. yc < 0) .OR. (abs(y_sec - 1.5) <= 0.5 .AND. yc > 0)) then
+						if (abs(x_sec - 0.75) <= 0.25) then 
+							radmod = (xc-(cxc + outr))**2 + (yc-(cyc-1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc + outr
+								cyc = cyc - 1.5*a
+								Nyh = Nyh - 1
+							end if
+						else if (abs(x_sec - 1.25) <= 0.25) then
+							radmod = (xc-(cxc - outr))**2 + (yc-(cyc-1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc - outr
+								cyc = cyc - 1.5*a
+								Nyh = Nyh - 1
+								Nxh = Nxh - 1
+							end if
+						end if
+					else if ((abs(y_sec - 0.5) < 0.5 .AND. yc >= 0) .OR. (abs(y_sec - 1.5) <= 0.5 .AND. yc < 0)) then      
+						if (abs(x_sec - 0.75) <= 0.25) then
+							radmod = (xc-(cxc + outr))**2 + (yc-(cyc+1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc + outr
+								cyc = cyc + 1.5*a
+								Nxh = Nxh + 1
+								Nyh = Nyh + 1
+							end if
+						else if (abs(x_sec - 1.25) <= 0.25) then
+							radmod = (xc-(cxc - outr))**2 + (yc-(cyc+1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc - outr
+								cyc = cyc + 1.5*a
+								Nyh = Nyh + 1	
+							end if
+						end if
+					end if
+					 
+					 if (tri==0) then
+						 radmod = (xc - cxc)**2 + (yc - cyc)**2
+					 end if
+					 
+
+					 ! discard if outside nrings-wide array
+                     ! circular boundary
+					 if ((hexgrid == 0) .and. (nrings > 6)) then! asymptotic circle condition for nrings > 6
+						if ((cxc)**2 + (cyc)**2 > nringsdiam2) then
+							cycle
+						end if
+					 else if ((hexgrid == 0) .and. (nrings < 7)) then! asymptotic circle condition for nrings < 7
+						if ((cxc)**2 + (cyc)**2 > nr15d2) then
+							cycle
+						end if
+					 ! hexagonal boundary
+					 else if ((hexgrid == 1) .or. ((hexgrid == 0) .and. (nrings < 7))) then ! hexagon array
+						if ((abs(Nxh) > nrings) .or. (abs(Nyh) > nrings) .or. (abs(Nxh-Nyh) > nrings)) then
+							cycle
+						end if
+					 end if
+					 
+					 ! if in array, discard if outside wall
+					 if ((radmod > outr2 ) .OR. (radmod < inr2)) then
+                        cycle
+                     ! END of discards
+					 else 
+                        pt(1,nps) = x
+                        pt(2,nps) = y
+                        pt(3,nps) = 0.0
+                        pt(4,nps) = 0.0
+                        pt(5,nps) = 0.0
+                        pt(6,nps) = 1.0
+                        pt(7,nps) = 1.0
+                        pt(8,nps) = qm
+                        nps = nps + 1
+                     end if
+                  enddo
+               enddo
+            enddo
+         enddo
+         else if (noff > (nx-ny-1)) then       
+         do i=2, nx-1
+            do j=1, ny-1
+               do ix = 0, xppc-1
+                  do iy=0, yppc-1
+                     x = (ix + 0.5)/xppc + i - 1
+                     y = (iy + 0.5)/yppc + j - 1 + noff
+					 ! cart from window center
+					 xc = (x - cx)
+					 yc = (y - cy)
+					 
+					 ! Main routine (case 2 of 3)
+					 
+					 ! Find center of hexagonal tile this particle belongs to
+					 
+					 ! rough estimate of center y (axial coordinates)
+					 yh = irt3o2*yc
+					 Nyh = NINT(yh/diam)
+					 cyh = Nyh*diam
+					 cyc = cyh*rt3o2
+					
+					 ! rough estimate of center x (axial coordinates)
+					 xh = xc + yh/2.0
+					 xch = xc + irt3*cyc
+					 Nxh = NINT(xch/diam)
+					 cxh = Nxh * diam
+					 cxc = cxh - 0.5*cyh
+					 
+					 ! Correction for upper and lower circle tips
+					 x_sec = xch/outr
+					 x_sec = x_sec - FLOOR(x_sec*0.5)*2.0 ! cart. distance from nearest center towards origin
+					 y_sec = MOD(ABS(yc/(rt3o2*outr)), 2.0) ! cart. distance from nearest center towards origin
+					 
+					 tri = 0
+					if ((abs(y_sec - 0.5) <= 0.5 .AND. yc < 0) .OR. (abs(y_sec - 1.5) <= 0.5 .AND. yc > 0)) then
+						if (abs(x_sec - 0.75) <= 0.25) then 
+							radmod = (xc-(cxc + outr))**2 + (yc-(cyc-1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc + outr
+								cyc = cyc - 1.5*a
+								Nyh = Nyh - 1
+							end if
+						else if (abs(x_sec - 1.25) <= 0.25) then
+							radmod = (xc-(cxc - outr))**2 + (yc-(cyc-1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc - outr
+								cyc = cyc - 1.5*a
+								Nyh = Nyh - 1
+								Nxh = Nxh - 1
+							end if
+						end if
+					else if ((abs(y_sec - 0.5) < 0.5 .AND. yc >= 0) .OR. (abs(y_sec - 1.5) <= 0.5 .AND. yc < 0)) then      
+						if (abs(x_sec - 0.75) <= 0.25) then
+							radmod = (xc-(cxc + outr))**2 + (yc-(cyc+1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc + outr
+								cyc = cyc + 1.5*a
+								Nxh = Nxh + 1
+								Nyh = Nyh + 1
+							end if
+						else if (abs(x_sec - 1.25) <= 0.25) then
+							radmod = (xc-(cxc - outr))**2 + (yc-(cyc+1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc - outr
+								cyc = cyc + 1.5*a
+								Nyh = Nyh + 1	
+							end if
+						end if
+					end if
+					 
+					 if (tri==0) then
+						 radmod = (xc - cxc)**2 + (yc - cyc)**2
+					 end if
+					 
+
+					 ! discard if outside nrings-wide array
+                     ! circular boundary
+					 if ((hexgrid == 0) .and. (nrings > 6)) then! asymptotic circle condition for nrings > 6
+						if ((cxc)**2 + (cyc)**2 > nringsdiam2) then
+							cycle
+						end if
+					 else if ((hexgrid == 0) .and. (nrings < 7)) then! asymptotic circle condition for nrings < 7
+						if ((cxc)**2 + (cyc)**2 > nr15d2) then
+							cycle
+						end if
+					 ! hexagonal boundary
+					 else if ((hexgrid == 1) .or. ((hexgrid == 0) .and. (nrings < 7))) then ! hexagon array
+						if ((abs(Nxh) > nrings) .or. (abs(Nyh) > nrings) .or. (abs(Nxh-Nyh) > nrings)) then
+							cycle
+						end if
+					 end if
+					 
+					 ! if in array, discard if outside wall
+					 if ((radmod > outr2 ) .OR. (radmod < inr2)) then
+                        cycle
+                     ! END of discards
+                     else 
+                        pt(1,nps) = x
+                        pt(2,nps) = y
+                        pt(3,nps) = 0.0
+                        pt(4,nps) = 0.0
+                        pt(5,nps) = 0.0
+                        pt(6,nps) = 1.0
+                        pt(7,nps) = 1.0
+                        pt(8,nps) = qm
+                        nps = nps + 1
+                     end if
+                  enddo
+               enddo
+            enddo
+         enddo
+         else
+         do i=2, nx-1
+            do j=1, ny
+               do ix = 0, xppc-1
+                  do iy=0, yppc-1
+                     x = (ix + 0.5)/xppc + i - 1
+                     y = (iy + 0.5)/yppc + j - 1 + noff
+					 ! cart from window center
+					 xc = (x - cx)
+					 yc = (y - cy)
+					 
+					 ! Main routine (case 3 of 3)
+					 
+					 ! Find center of hexagonal tile this particle belongs to
+					 
+					 ! rough estimate of center y (axial coordinates)
+					 yh = irt3o2*yc
+					 Nyh = NINT(yh/diam)
+					 cyh = Nyh*diam
+					 cyc = cyh*rt3o2
+					
+					 ! rough estimate of center x (axial coordinates)
+					 xh = xc + yh/2.0
+					 xch = xc + irt3*cyc
+					 Nxh = NINT(xch/diam)
+					 cxh = Nxh * diam
+					 cxc = cxh - 0.5*cyh
+					 
+					 ! Correction for upper and lower circle tips
+					 x_sec = xch/outr
+					 x_sec = x_sec - FLOOR(x_sec*0.5)*2.0 ! cart. distance from nearest center towards origin
+					 y_sec = MOD(ABS(yc/(rt3o2*outr)), 2.0) ! cart. distance from nearest center towards origin
+					 
+					 tri = 0
+					if ((abs(y_sec - 0.5) <= 0.5 .AND. yc < 0) .OR. (abs(y_sec - 1.5) <= 0.5 .AND. yc > 0)) then
+						if (abs(x_sec - 0.75) <= 0.25) then 
+							radmod = (xc-(cxc + outr))**2 + (yc-(cyc-1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc + outr
+								cyc = cyc - 1.5*a
+								Nyh = Nyh - 1
+							end if
+						else if (abs(x_sec - 1.25) <= 0.25) then
+							radmod = (xc-(cxc - outr))**2 + (yc-(cyc-1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc - outr
+								cyc = cyc - 1.5*a
+								Nyh = Nyh - 1
+								Nxh = Nxh - 1
+							end if
+						end if
+					else if ((abs(y_sec - 0.5) < 0.5 .AND. yc >= 0) .OR. (abs(y_sec - 1.5) <= 0.5 .AND. yc < 0)) then      
+						if (abs(x_sec - 0.75) <= 0.25) then
+							radmod = (xc-(cxc + outr))**2 + (yc-(cyc+1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc + outr
+								cyc = cyc + 1.5*a
+								Nxh = Nxh + 1
+								Nyh = Nyh + 1
+							end if
+						else if (abs(x_sec - 1.25) <= 0.25) then
+							radmod = (xc-(cxc - outr))**2 + (yc-(cyc+1.5*a))**2
+							if (radmod < outr2) then
+								tri = 1
+								cxc = cxc - outr
+								cyc = cyc + 1.5*a
+								Nyh = Nyh + 1	
+							end if
+						end if
+					end if
+					 
+					 if (tri==0) then
+						 radmod = (xc - cxc)**2 + (yc - cyc)**2
+					 end if
+					 
+
+					 ! discard if outside nrings-wide array
+                     ! circular boundary
+					 if ((hexgrid == 0) .and. (nrings > 6)) then! asymptotic circle condition for nrings > 6
+						if ((cxc)**2 + (cyc)**2 > nringsdiam2) then
+							cycle
+						end if
+					 else if ((hexgrid == 0) .and. (nrings < 7)) then! asymptotic circle condition for nrings < 7
+						if ((cxc)**2 + (cyc)**2 > nr15d2) then
+							cycle
+						end if
+					 ! hexagonal boundary
+					 else if ((hexgrid == 1) .or. ((hexgrid == 0) .and. (nrings < 7))) then ! hexagon array
+						if ((abs(Nxh) > nrings) .or. (abs(Nyh) > nrings) .or. (abs(Nxh-Nyh) > nrings)) then
+							cycle
+						end if
+					 end if
+					 
+					 ! if in array, discard if outside wall
+					 if ((radmod > outr2 ) .OR. (radmod < inr2)) then
+                        cycle
+                     ! END of discards
+                     else 
+                        pt(1,nps) = x
+                        pt(2,nps) = y
+                        pt(3,nps) = 0.0
+                        pt(4,nps) = 0.0
+                        pt(5,nps) = 0.0
+                        pt(6,nps) = 1.0
+                        pt(7,nps) = 1.0
+                        pt(8,nps) = qm
+                        nps = nps + 1
+                     end if
+                  enddo
+               enddo
+            enddo
+         enddo
+         endif
+		 
+         
+         npp = nps - 1
+         
+         call this%err%werrfl2(class//sname//' ended')
+
+      end subroutine dist2d_014
       end module fdist2d_class

@@ -550,6 +550,9 @@
                call this%pf(i)%p%new(input,i)
             case (13)
                allocate(fdist2d_013::this%pf(i)%p)
+               call this%pf(i)%p%new(input,i)  
+            case (14)
+               allocate(fdist2d_014::this%pf(i)%p)
                call this%pf(i)%p%new(input,i)
 ! Add new distributions right above this line
             case default

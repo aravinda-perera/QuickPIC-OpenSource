@@ -186,7 +186,7 @@
       
       type, extends(fdist3d) :: fdist3d_007  
 !! GAUSS Twiss parameter and Piecewise Longitudinal in z (the same particle charge)
-!! With centroid perturbation at sin(kappa (xi-cxstart))
+!! With centroid perturbation at sin(kappa (xi-censtart))
          private
 
          integer :: npx, npy, npz
@@ -194,7 +194,7 @@
          real :: bcx, bcy, bcz, alphax, alphay, betax, betay
          real :: emitx, emity
          real :: cx1,cx2,cx3,cy1,cy2,cy3,gamma,np
-         real :: xc0, kappa, cxstart
+         real :: cax, cay, kappa, censtart, cenphase
          real, dimension(:), allocatable :: fz, z
          logical :: quiet
 
@@ -1634,7 +1634,7 @@
       end subroutine dist3d_006
 !
 !
-! PW Twiss with centroid modulation sin(kappa(xi-cxstart))
+! PW Twiss with centroid modulation sin(kappa(xi-censtart))
       subroutine init_fdist3d_007(this,input,i)
       
          implicit none
@@ -1647,13 +1647,14 @@
          real :: qm,sigx,sigy,sigz,bcx,bcy,bcz,sigvz
          real, dimension(2) :: alpha, beta, emit
          real :: cx1,cx2,cx3,cy1,cy2,cy3,gamma,np
-         real :: xc0, kappa, cxstart
-         logical :: quiet, evol
+         real :: c0, kappa, censtart, cenangle
+		 real :: cenphase
          real :: min, max, cwp, n0
          real :: alx, aly, alz, dx, dy, dz
          integer :: indx, indy, indz
          integer :: ii
-         real :: sumz  
+         real :: sumz 
+         logical :: quiet, evol
          character(len=20) :: sn,s1
          character(len=18), save :: sname = 'init_fdist3d_007:'
          
@@ -1708,9 +1709,11 @@
          call input%get(trim(s1)//'.centroid_y(2)',cy2)
          call input%get(trim(s1)//'.centroid_y(3)',cy3)
 ! Amplitude, wavenumber and xi-offset for sin xc perturbation
-         call input%get(trim(s1)//'centroid_xk(1)',xc0)
-         call input%get(trim(s1)//'centroid_xk(2)',kappa)
-         call input%get(trim(s1)//'centroid_xk(3)',cxstart)
+         call input%get(trim(s1)//'centroid_k(1)',c0)
+         call input%get(trim(s1)//'centroid_k(2)',kappa)
+         call input%get(trim(s1)//'centroid_k(3)',censtart)
+		 call input%get(trim(s1)//'centroid_k(4)',cenangle)
+		 call input%get(trim(s1)//'centroid_k(5)',cenphase)
 !     END TWISS_L mod
 
          call input%get(trim(s1)//'.alpha(1)',alpha(1))
@@ -1775,10 +1778,14 @@
          this%cy1 = cy1*dz*dz/dy
          this%cy2 = cy2*dz/dy
          this%cy3 = cy3/dy
-         
-         this%xc0 = xc0/dx
+		 
+		 this%cax = (c0/dx)*cos(cenangle)
+		 !this%cay = (c0/dy)sin(cenangle)  
+         this%cay = sqrt(1.0 - (this%cax*dx)**2)/dy
          this%kappa = kappa*dz
-         this%cxstart = cxstart/dz
+         this%censtart = censtart/dz
+		 this%cenphase = cenphase
+
          
 !     END TWISS_L mod
          
@@ -1812,7 +1819,8 @@
          real :: alphay, betay, emity
          
 !     TWISS_L
-         real, dimension(3) :: cx, cy, cxk
+         real, dimension(3) :: cx, cy
+		 real, dimension(5) :: ck
          real, dimension(:), allocatable :: zf
 !     END TWISS_L
 
@@ -1846,9 +1854,10 @@
 !     TWISS_L
          cx = (/this%cx1,this%cx2,this%cx3/)
          cy = (/this%cy1,this%cy2,this%cy3/)
-         cxk = (/this%xc0,this%kappa,this%cxstart/)
+         ck = (/this%cax,this%cay,this%kappa,this%censtart,&
+		 &this%cenphase/)
          !kappa = this%kappa
-         !cxstart = this%cxstart
+         !censtart = this%censtart
 !     END TWISS_L
          x0 = this%bcx; y0 = this%bcy; z0 = this%bcz
          lquiet = this%quiet
@@ -1884,7 +1893,7 @@
 
          call PRVDIST32_TWISS_PW_CEN(pt,this%qm,edges,npp,nps,alphax,alphay,&
          &betax,betay,emitx,emity,vdz,x0,y0,z0,vtz,vdx,vdy,vdz,&
-         &cx,cy,cxk,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
+         &cx,cy,ck,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
          &npmax,1,1,4,zf,lquiet,ierr)
          
 

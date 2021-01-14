@@ -698,7 +698,7 @@ c process errors
 c-----------------------------------------------------------------------
       subroutine PRVDIST32_TWISS_PW_CEN(part,qm,edges,npp,nps,alpha_x,
      1alpha_y,beta_x,beta_y,emt_x,emt_y,gamma,x0,y0,z0,
-     2vtz,vdx,vdy,vdz,cx,cy,cxk,npx,npy,npz,nx,ny,nz,ipbc,idimp,
+     2vtz,vdx,vdy,vdz,cx,cy,ck,npx,npy,npz,nx,ny,nz,ipbc,idimp,
      3npmax,mblok,nblok,idps,dp,lquiet,ierr)
 c new quiet start
 c keep 1 + p^2 = gamma
@@ -747,11 +747,11 @@ c     New Twiss variables
       real alpha_x, alpha_y, beta_x, beta_y, emt_x, emt_y, gamma
       
       double precision random,ranorm
-      real cx, cy, qm, cxk
+      real cx, cy, qm, ck
       real cdth,sdth
       dimension part(idimp,npmax,nblok),dp(nz)
       dimension edges(idps,nblok), npp(nblok), nps(nblok)
-      dimension cx(0:2),cy(0:2), cxk(0:2)
+      dimension cx(0:2),cy(0:2), ck(0:4)
       logical lquiet
 
 c local variables
@@ -763,7 +763,7 @@ c local variables
       double precision sum0, sum1, sum2, dnpxyz
       real at1,sum3,work3
       real tempx,tempy,tempxx,tempyy, x2, y2,tempz,tvtx,tvty,tvtz
-      real tempxc, tempx0,tempy0,tvtx0,tvty0
+      real tempxc,tempyc,tempx0,tempy0,tvtx0,tvty0
       dimension sum3(3), work3(3), isum2(2), iwork2(2)
 c borderlx(yz), lower bound of border, borderx(yz), upper bound.      
       integer borderlx,borderly, borderx, bordery, nz1 
@@ -859,17 +859,19 @@ c               Twiss parameters to phase-space rotation
                      
 c                     add centroid shifts for x and y
                      
-                     if (part(3,npt,m).gt.cxk(2)) then
-                     tempxc = cxk(0)*SIN(cxk(1)*(part(3,npt,m)-cxk(2)))
+                     if (part(3,npt,m).gt.ck(2)) then
+                tempxc = ck(0)*SIN(ck(2)*(part(3,npt,m)-ck(3))+ck(4))
+                tempyc = ck(1)*SIN(ck(2)*(part(3,npt,m)-ck(3))+ck(4))
                      else
                      tempxc = 0.0d0
+                     tempyc = 0.0d0
                      endif
                      
                      tempxx = -cx(2)*(part(3,npt,m)-z0)**2-cx(1)*(part(3&
      &,npt,m)-z0)-cx(0) + tempxc                
                      part(1,npt,m) = tempx + tempxx
                      tempyy = -cy(2)*(part(3,npt,m)-z0)**2-cy(1)*(part(3&
-     &,npt,m)-z0)-cy(0)        
+     &,npt,m)-z0)-cy(0) + tempyc        
                      part(2,npt,m) = tempy + tempyy 
                      part(4,npt,m) = tvtx
                      part(5,npt,m) = tvty
