@@ -13,5 +13,6 @@ Please feel free to join in our email list [quickpic-users-developers](https://g
 * [QuickPIC-OpenSource Input file](https://github.com/UCLA-Plasma-Simulation-Group/QuickPIC-OpenSource/wiki/Input-File-for-QuickPIC)
 * [Developer Guide](https://ucla-plasma-simulation-group.github.io/QuickPIC-OpenSource/) 
 
-# New beam profile
-* [Input file changes: Longitudinal Piecewise, Transverse Twiss](https://github.com/taperera/QuickPIC-OpenSource/wiki/Twiss-profile-in-Input-File)
+# New additions
+* [New Beam Profiles](https://github.com/aravinda-perera/QuickPIC-OpenSource/wiki/New-Beam-Profiles)
+* [New Plasma Profiles](https://github.com/aravinda-perera/QuickPIC-OpenSource/wiki/New-Plasma-Profiles)
