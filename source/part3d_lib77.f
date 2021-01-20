@@ -696,10 +696,10 @@ c process errors
       return
       end
 c-----------------------------------------------------------------------
-      subroutine PRVDIST32_TWISS_PW_CEN(part,qm,edges,npp,nps,alpha_x,
-     1alpha_y,beta_x,beta_y,emt_x,emt_y,gamma,x0,y0,z0,
-     2vtz,vdx,vdy,vdz,cx,cy,ck,npx,npy,npz,nx,ny,nz,ipbc,idimp,
-     3npmax,mblok,nblok,idps,dp,lquiet,ierr)
+      subroutine PRVDIST32_TWISS_PW_CEN(part,qm,edges,npp,nps,
+     1alpha_x,alpha_y,beta_x,beta_y,emt_x,emt_y,gamma,x0,y0,z0,
+     2vtz,vdx,vdy,vdz,cx,cy,npx,npy,npz,nx,ny,nz,ipbc,idimp,
+     3npmax,mblok,nblok,idps,dp,hcx,hcy,hk,hs,hp,nh,lquiet,ierr)
 c new quiet start
 c keep 1 + p^2 = gamma
 c for 3d code, this subroutine calculates initial particle co-ordinates
@@ -742,16 +742,22 @@ c      integer f77_log_unit, f77_output_unit
       integer nps,npp,npmax,nblok,npx,npy,npz,idimp,nx,ny,nz,idps,ierr
       integer mblok, ipbc
       real part,edges,x0,y0,z0,sigx,sigy,vtx,vty,vtz,vdx,vdy,vdz,dp
+	  
+
       
 c     New Twiss variables 
       real alpha_x, alpha_y, beta_x, beta_y, emt_x, emt_y, gamma
       
       double precision random,ranorm
-      real cx, cy, qm, ck
+      real cx, cy, qm
       real cdth,sdth
       dimension part(idimp,npmax,nblok),dp(nz)
       dimension edges(idps,nblok), npp(nblok), nps(nblok)
-      dimension cx(0:2),cy(0:2), ck(0:4)
+      dimension cx(0:2), cy(0:2)
+	  integer nh
+	  real hcx,hcy,hk,hs,hp
+	  dimension hcx(nh), hcy(nh), hk(nh), hs(nh), hp(nh)
+	  real caxmax, caymax
       logical lquiet
 
 c local variables
@@ -767,7 +773,7 @@ c local variables
       dimension sum3(3), work3(3), isum2(2), iwork2(2)
 c borderlx(yz), lower bound of border, borderx(yz), upper bound.      
       integer borderlx,borderly, borderx, bordery, nz1 
-      integer cnt
+      integer cnt, nhi
 c ----
 c Things that the piecewise long subroutine needs:
 c (part,qm,edges,npp,nps,x0,y0,z0,sigx,s
@@ -801,10 +807,13 @@ c     Twiss parameters to sigma, sigmaprime
       vtx = emt_x/sigx
       vty = emt_y/sigy
       
-      borderlx = max((x0-3.0*sigx),1.0)
-      borderly = max((y0-3.0*sigy),1.0)
-      borderx = min((x0+3.0*sigx),float(nx-1)) 
-      bordery = min((y0+3.0*sigy),float(ny-1))
+	  caxmax = maxval(hcx)
+	  caymax = maxval(hcy)
+	  
+      borderlx = max((x0-3.0*sigx),1.0) - caxmax
+      borderly = max((y0-3.0*sigy),1.0) - caymax
+      borderx = min((x0+3.0*sigx),float(nx-1)) + caxmax
+      bordery = min((y0+3.0*sigy),float(ny-1)) + caymax
 
       nz1 = nz -1
 
@@ -834,17 +843,34 @@ c     Twiss parameters to sigma, sigmaprime
          zi = zi+1
         dpi = dp(zi)*zs + dp(zi+1)*zf    
         if (u<=dpi) then  
-C particle is accepted        
+C particle is accepted
   20    tempx = x0+sigx*ranorm()
         if (tempx>=(borderx) .or. tempx<=borderlx) goto 20
  
   30    tempy = y0+sigy*ranorm()
         if (tempy>=(bordery) .or. tempy<=borderly) goto 30
         
-        
+c add centroid shifts for x and y
+		 tempxc = 0.0d0
+		 tempyc = 0.0d0
+		 if (part(3,npt,m) >= hs(nhi)) then
+		 ! add offset contribs from all modes	
+			 do nhi = 1, nh
+				 !tempxc = tempxc + hcx(nhi)*SIN(hk(nhi)*(part(3,npt,m)-hs(nhi))+hp(nhi))
+				 !tempyc = tempyc + hcy(nhi)*SIN(hk(nhi)*(part(3,npt,m)-hs(nhi))+hp(nhi))
+				 
+	  tempxc=tempxc+hcx(nhi)*SIN(hk(nhi)*(part(3,npt,m)-hs(nhi))+hp(nhi))
+	  tempyc=tempyc+hcy(nhi)*SIN(hk(nhi)*(part(3,npt,m)-hs(nhi))+hp(nhi))
+				!tempxc = tempxc + ck(0)*SIN(ck(2)*(part(3,npt,m)-ck(3))+ck(4))
+				!tempyc = tempyc + ck(1)*SIN(ck(2)*(part(3,npt,m)-ck(3))+ck(4))
+			 enddo
+		 endif
+
+			tempyy = tempy + tempyc ! for partition checking. rewritten after twiss calculations
+					 
 c  check if particle belongs to this partition
              do m = 1, nblok 
-              if ((tempy<edges(2,m)) .and. (tempy>edges(1,m)) .and.     &
+              if ((tempyy<edges(2,m)) .and. (tempyy>edges(1,m)) .and.     &
      & (tempz<edges(4,m)) .and. (tempz>edges(3,m))) then  
                 tvtx = vtx*ranorm()
                 tvty = vty*ranorm()
@@ -857,21 +883,14 @@ c               Twiss parameters to phase-space rotation
                      npt = npp(m) + 1
                      part(3,npt,m) = tempz
                      
-c                     add centroid shifts for x and y
-                     
-                     if (part(3,npt,m).gt.ck(2)) then
-                tempxc = ck(0)*SIN(ck(2)*(part(3,npt,m)-ck(3))+ck(4))
-                tempyc = ck(1)*SIN(ck(2)*(part(3,npt,m)-ck(3))+ck(4))
-                     else
-                     tempxc = 0.0d0
-                     tempyc = 0.0d0
-                     endif
+		tempx = tempx + tempxc
+		tempy = tempyy ! tempy + tempyc
                      
                      tempxx = -cx(2)*(part(3,npt,m)-z0)**2-cx(1)*(part(3&
-     &,npt,m)-z0)-cx(0) + tempxc                
+     &,npt,m)-z0)-cx(0)                
                      part(1,npt,m) = tempx + tempxx
                      tempyy = -cy(2)*(part(3,npt,m)-z0)**2-cy(1)*(part(3&
-     &,npt,m)-z0)-cy(0) + tempyc        
+     &,npt,m)-z0)-cy(0)        
                      part(2,npt,m) = tempy + tempyy 
                      part(4,npt,m) = tvtx
                      part(5,npt,m) = tvty

@@ -387,6 +387,7 @@
          logical :: quiet
          real :: gamma
          real :: qm, qbm, dt
+		 integer :: tstrt
          logical :: read_rst
          integer :: rst_timestep, ierr
          type(hdf5file) :: file_rst
@@ -444,12 +445,13 @@
 
             call input%get(trim(s1)//'.q',qm)
             call input%get(trim(s1)//'.m',qbm)
+			call input%get(trim(s1)//'.tstart',tstrt)
             qbm = qm/qbm
                
             call input%get('simulation.dt',dt)
             
             call this%beam(i)%new(this%p,this%err,this%sp3,this%pf(i)%p,qbm=qbm,&
-            &dt=dt,ci=1.0,xdim=7)
+            &dt=dt,ci=1.0,xdim=7,tstart=tstrt)
 
             call input%get('simulation.read_restart',read_rst)
 
@@ -745,11 +747,11 @@
 ! TAP2019 - beam push   - tags not needed if no push   
             do m = 1, this%nbeams
                this%tag_beam(m) = ntag()
-               ! if this%tstep > this%beams%beam(m)%tstart
-               call MPI_WAIT(this%id_beam(m),istat,ierr)
-               call this%beams%beam(m)%push(this%fields%bexyz,this%fields%bbxyz,this%dex,this%dxi,&
-               &this%tag_beam(m),this%tag_beam(m),this%id_beam(m))
-               ! end if
+			   call MPI_WAIT(this%id_beam(m),istat,ierr)
+			   !TAP2021 - beam(m)%push now handles tstart > tstep
+			   call this%beams%beam(m)%push(this%fields%bexyz,this%fields%bbxyz,this%dex,this%dxi,&
+			   &this%tag_beam(m),this%tag_beam(m),this%id_beam(m),this%tstep)
+			   
             end do
 ! /TAP2019 --- Internal if            
             call this%diag_simulation()

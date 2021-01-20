@@ -189,13 +189,14 @@
 !! With centroid perturbation at sin(kappa (xi-censtart))
          private
 
-         integer :: npx, npy, npz
+         integer :: npx, npy, npz, nh
          real :: qm, sigvz
          real :: bcx, bcy, bcz, alphax, alphay, betax, betay
          real :: emitx, emity
          real :: cx1,cx2,cx3,cy1,cy2,cy3,gamma,np
-         real :: cax, cay, kappa, censtart, cenphase
+         !real :: cax, cay, kappa, censtart, cenphase
          real, dimension(:), allocatable :: fz, z
+		 real, dimension(:), allocatable :: hcx, hcy, hk, hs, hp
          logical :: quiet
 
          contains
@@ -1647,8 +1648,10 @@
          real :: qm,sigx,sigy,sigz,bcx,bcy,bcz,sigvz
          real, dimension(2) :: alpha, beta, emit
          real :: cx1,cx2,cx3,cy1,cy2,cy3,gamma,np
-         real :: c0, kappa, censtart, cenangle
-		 real :: cenphase
+		 real, dimension(:), allocatable:: hc0, ha
+		 integer :: nh, nhi
+         !real :: c0, kappa, censtart, cenangle
+		 !real :: cenphase
          real :: min, max, cwp, n0
          real :: alx, aly, alz, dx, dy, dz
          integer :: indx, indy, indz
@@ -1709,12 +1712,18 @@
          call input%get(trim(s1)//'.centroid_y(2)',cy2)
          call input%get(trim(s1)//'.centroid_y(3)',cy3)
 ! Amplitude, wavenumber and xi-offset for sin xc perturbation
-         call input%get(trim(s1)//'centroid_k(1)',c0)
-         call input%get(trim(s1)//'centroid_k(2)',kappa)
-         call input%get(trim(s1)//'centroid_k(3)',censtart)
-		 call input%get(trim(s1)//'centroid_k(4)',cenangle)
-		 call input%get(trim(s1)//'centroid_k(5)',cenphase)
+         !call input%get(trim(s1)//'centroid_k(1)',c0)
+         !call input%get(trim(s1)//'centroid_k(2)',kappa)
+         !call input%get(trim(s1)//'centroid_k(3)',censtart)
+		 !call input%get(trim(s1)//'centroid_k(4)',cenangle)
+		 !call input%get(trim(s1)//'centroid_k(5)',cenphase)
 !     END TWISS_L mod
+
+         call input%get(trim(s1)//'.cen_c0',hc0)
+         call input%get(trim(s1)//'.cen_k',this%hk)
+		 call input%get(trim(s1)//'.cen_start',this%hs)
+         call input%get(trim(s1)//'.cen_angle',ha)
+         call input%get(trim(s1)//'.cen_phase',this%hp)
 
          call input%get(trim(s1)//'.alpha(1)',alpha(1))
          call input%get(trim(s1)//'.alpha(2)',alpha(2))
@@ -1779,12 +1788,23 @@
          this%cy2 = cy2*dz/dy
          this%cy3 = cy3/dy
 		 
-		 this%cax = (c0/dx)*cos(cenangle)
+		 !this%cax = (c0/dx)*cos(cenangle)
 		 !this%cay = (c0/dy)sin(cenangle)  
-         this%cay = sqrt(1.0 - (this%cax*dx)**2)/dy
-         this%kappa = kappa*dz
-         this%censtart = censtart/dz
-		 this%cenphase = cenphase
+         !this%cay = sqrt(1.0 - (this%cax*dx)**2)/dy
+         !this%kappa = kappa*dz
+         !this%censtart = censtart/dz
+		 !this%cenphase = cenphase
+		 
+		
+		this%nh = size(hc0)
+		do nhi = 1, nh
+			this%hcx(nhi) = hc0(nhi)*cos(ha(nhi))
+			this%hcy(nhi) = hc0(nhi)*sin(ha(nhi))
+			this%hk(nhi) = this%hk(nhi)*dz
+			this%hs(nhi) = this%hs(nhi)/dz
+			this%hp(nhi) = this%hp(nhi)
+		enddo
+
 
          
 !     END TWISS_L mod
@@ -1820,7 +1840,11 @@
          
 !     TWISS_L
          real, dimension(3) :: cx, cy
-		 real, dimension(5) :: ck
+		 !real, dimension(5) :: ck
+		 
+		 !real, dimension(:), allocatable :: hc0, hk, hs, ha, hp
+		 
+		 
          real, dimension(:), allocatable :: zf
 !     END TWISS_L
 
@@ -1831,10 +1855,13 @@
          integer :: idimp, npmax, ierr = 0
          integer :: nzf, i, j
          character(len=18), save :: sname = 'dist3d_007:'
+		 
+		 
 
          call this%err%werrfl2(class//sname//' started')
          
          npx = this%npx; npy = this%npy; npz = this%npz
+		 
 !     TWISS_L
          nzf = size(this%z)
 !     END TWISS_L
@@ -1854,8 +1881,8 @@
 !     TWISS_L
          cx = (/this%cx1,this%cx2,this%cx3/)
          cy = (/this%cy1,this%cy2,this%cy3/)
-         ck = (/this%cax,this%cay,this%kappa,this%censtart,&
-		 &this%cenphase/)
+         !ck = (/this%cax,this%cay,this%kappa,this%censtart,&
+		 !&this%cenphase/)
          !kappa = this%kappa
          !censtart = this%censtart
 !     END TWISS_L
@@ -1880,6 +1907,8 @@
                end if
             end do
          end do
+!     END TWISS_L		 
+
 
          
 !         call PRVDIST32_TWISS(pt,this%qm,edges,npp, nps, alphax,alphay,&
@@ -1891,19 +1920,21 @@
 !        - this call must match the parameter list in the part3d_lib(77)
 !        - cx, cy are the only *new* variables and must be declared in part3d_lib.f03
 
-         call PRVDIST32_TWISS_PW_CEN(pt,this%qm,edges,npp,nps,alphax,alphay,&
+         call PRVDIST32_TWISS_PW_CEN(pt,this%qm,edges,npp,nps,&
+		 &alphax,alphay,&
          &betax,betay,emitx,emity,vdz,x0,y0,z0,vtz,vdx,vdy,vdz,&
-         &cx,cy,ck,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
-         &npmax,1,1,4,zf,lquiet,ierr)
-         
-
-
+         &cx,cy,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
+         &npmax,1,1,4,zf,this%hcx,this%hcy,this%hk,&
+		 &this%hs,this%hp,this%nh,lquiet,ierr)
+		 
+	 
+	 
 !          call PRVDIST32_RANDOM(pt,this%qm,edges,npp,nps,vtx,vty,vtz,vdx,vdy,&
 !          &vdz,npx,npy,npz,nx,ny,nz,ipbc,idimp,npmax,1,1,4,sigx,sigy,sigz,&
 !          &x0,y0,z0,cx,cy,lquiet,ierr)
 
          if (ierr /= 0) then
-            write (erstr,*) 'PRVDIST32_TWISS_PW error'
+            write (erstr,*) 'PRVDIST32_TWISS_PW_CEN error'
             call this%err%equit(class//sname//erstr)
          endif
          

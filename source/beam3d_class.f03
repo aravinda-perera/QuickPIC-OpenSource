@@ -30,6 +30,7 @@
          class(field3d), pointer :: q => null()
          class(fdist3d), pointer :: pf => null()
          logical :: evol
+		 integer :: tstart
          contains
          
          generic :: new => init_beam3d
@@ -58,7 +59,7 @@
       
       contains
 !
-      subroutine init_beam3d(this,pp,perr,psp,pf,qbm,dt,ci,xdim)
+      subroutine init_beam3d(this,pp,perr,psp,pf,qbm,dt,ci,xdim,tstart)
       
          implicit none
          
@@ -68,6 +69,7 @@
          class(parallel_pipe), intent(in), pointer :: pp
          class(fdist3d), intent(inout), target :: pf
          real, intent(in) :: qbm, dt, ci
+		 integer, intent(in) :: tstart ! in timesteps
          integer, intent(in) :: xdim
 
 ! local data
@@ -84,8 +86,9 @@
 
          allocate(this%pd,this%q)
          this%evol = pf%getevol()
+		 this%tstart = tstart
          call this%q%new(this%p,this%err,this%sp,dim=1)
-         call this%pd%new(pp,perr,psp,pf,this%q%getrs(),qbm,dt,ci,xdim)
+         call this%pd%new(pp,perr,psp,pf,this%q%getrs(),qbm,dt,ci,xdim,tstart)
          call this%pmv(this%q,1,1,id)
          call MPI_WAIT(id,istat,ierr)
          
@@ -150,7 +153,7 @@
          
       end subroutine qdpcopy_beam3d
 !      
-      subroutine push_beam3d(this,ef,bf,dex,dez,rtag,stag,sid)
+      subroutine push_beam3d(this,ef,bf,dex,dez,rtag,stag,sid,tstep)
       
          implicit none
          
@@ -158,13 +161,14 @@
          class(field3d), intent(in) :: ef, bf
          real, intent(in) :: dex, dez
          integer, intent(in) :: rtag, stag
-         integer, intent(inout) :: sid         
+         integer, intent(inout) :: sid  
+		 integer, intent(in) :: tstep
 ! local data
          character(len=18), save :: sname = 'partpush'
 
          call this%err%werrfl2(class//sname//' started')
 
-         if (.not. this%evol) then
+         if ((.not. this%evol) .or. (this%tstart .le. tstep)) then
             call this%err%werrfl2(class//sname//' ended')
             return
          end if

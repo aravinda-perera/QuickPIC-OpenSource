@@ -62,23 +62,26 @@
       end interface
 !
       interface
-         subroutine PRVDIST32_TWISS_PW_CEN(part,qm,edges,npp,nps,alpha_x,alpha_y,&
-         &beta_x,beta_y,emt_x,emt_y,gamma,x0,y0,z0,&
-         &vtz,vdx,vdy,vdz,cx,cy,ck,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
-         &npmax,mblok,nblok,idps,dp,lquiet,ierr)
+		 subroutine PRVDIST32_TWISS_PW_CEN(part,qm,edges,npp,nps,&
+         &alpha_x,alpha_y,beta_x,beta_y,emt_x,emt_y,gamma,x0,y0,z0,&
+         &vtz,vdx,vdy,vdz,cx,cy,npx,npy,npz,nx,ny,nz,ipbc,idimp,&
+         &npmax,mblok,nblok,idps,dp,h_cx,h_cy,h_k,h_s,h_p,nh,lquiet,ierr)
+		 
          implicit none
          integer, intent(in) :: npmax,nblok,npx,npy,npz,idimp,nx,ny,nz,i&
          &dps,mblok,ipbc
          integer, intent(inout) :: nps,npp,ierr
          real, intent(in) :: qm,x0,y0,z0,cx,cy,edges,vtz,vdx,vdy,vdz,gamma,dp
-         real, intent(in) :: ck
+         real, intent(in) :: h_cx,h_cy,h_k,h_s,h_p
+		 integer, intent(in) :: nh
          real, intent(in) :: alpha_x, alpha_y, beta_x, beta_y, emt_x, emt_y
          real, intent(inout) :: part
          logical, intent(in) :: lquiet
          dimension part(idimp,npmax,nblok)
          dimension edges(idps,nblok)
          dimension dp(nz)
-         dimension cx(0:2),cy(0:2), ck(0:4)
+         dimension cx(0:2),cy(0:2)
+		 dimension h_cx(nh),h_cy(nh),h_k(nh),h_s(nh),h_p(nh)
          end subroutine
       end interface
 !

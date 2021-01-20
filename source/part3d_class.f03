@@ -36,6 +36,7 @@
 ! part(:,:) = initial particle coordinates
 !         
          real :: qbm, dt, ci
+		 integer :: tstart
          integer :: npmax, nbmax, xdim, npp = 0
          real, dimension(:,:), pointer :: part => null(), pbuff => null()
          
@@ -72,7 +73,7 @@
       
       contains
 !
-      subroutine init_part3d(this,pp,perr,psp,pf,fd,qbm,dt,ci,xdim)
+      subroutine init_part3d(this,pp,perr,psp,pf,fd,qbm,dt,ci,xdim,tstart)
       
          implicit none
          
@@ -83,6 +84,7 @@
          class(fdist3d), intent(inout) :: pf
          class(ufield3d), pointer, intent(in) :: fd
          real, intent(in) :: qbm, dt, ci
+		 integer, intent(in) :: tstart
          integer, intent(in) :: xdim
 
 ! local data
@@ -98,6 +100,7 @@
          this%qbm = qbm
          this%dt = dt
          this%ci = ci
+		 this%tstart = tstart
          this%xdim = xdim
          npmax = pf%getnpmax()
          this%npmax = npmax

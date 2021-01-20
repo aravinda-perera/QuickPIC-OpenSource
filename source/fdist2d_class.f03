@@ -1280,7 +1280,7 @@
          real :: cx, cy
          real :: inr, outr, inr2, outr2, nrings, a   
 		 real :: irt3, irt3o2, rt3o2, diam, y_sec, x_sec
-		 real :: xc, yc, xh, yh, xch, radmod
+		 real :: xc, yc, xh, yh, xch, radmod, xyrad2
 		 real :: cxh, cyh, cxc, cyc, nringsdiam2, nr15d2
 		 integer :: tri, hexgrid
 		 integer :: Nxh, Nyh 
@@ -1346,6 +1346,25 @@
 					 ! cart from window center
 					 xc = (x - cx)
 					 yc = (y - cy)
+					 
+					 ! handle n_rings = 0
+					 if (nrings == 0) then
+						xyrad2 = xc**2 + yc**2
+						if ((xyrad2 .gt. outr2) .or. (xyrad2 .lt. inr2)) then
+							cycle
+						else
+							pt(1,nps) = x
+							pt(2,nps) = y
+							pt(3,nps) = 0.0
+							pt(4,nps) = 0.0
+							pt(5,nps) = 0.0
+							pt(6,nps) = 1.0
+							pt(7,nps) = 1.0
+							pt(8,nps) = qm
+							nps = nps + 1
+							cycle
+						endif
+					 endif
 					 
 					 ! Main routine (case 1 of 3)
 					 
@@ -1421,12 +1440,12 @@
 						if ((cxc)**2 + (cyc)**2 > nringsdiam2) then
 							cycle
 						end if
-					 else if ((hexgrid == 0) .and. (nrings < 7)) then! asymptotic circle condition for nrings < 7
+					 else if ((hexgrid == 0) .and. (nrings > 2 .and. nrings < 7)) then! asymptotic circle condition for nrings < 7
 						if ((cxc)**2 + (cyc)**2 > nr15d2) then
 							cycle
 						end if
 					 ! hexagonal boundary
-					 else if ((hexgrid == 1) .or. ((hexgrid == 0) .and. (nrings < 7))) then ! hexagon array
+					 else if ((hexgrid == 1) .or. ((hexgrid == 0) .and. (nrings < 3))) then ! hexagon array
 						if ((abs(Nxh) > nrings) .or. (abs(Nyh) > nrings) .or. (abs(Nxh-Nyh) > nrings)) then
 							cycle
 						end if
@@ -1458,11 +1477,30 @@
                   do iy=0, yppc-1
                      x = (ix + 0.5)/xppc + i - 1
                      y = (iy + 0.5)/yppc + j - 1 + noff
-					 ! cart from window center
+					  ! cart from window center
 					 xc = (x - cx)
 					 yc = (y - cy)
 					 
-					 ! Main routine (case 2 of 3)
+					 ! handle n_rings = 0
+					 if (nrings == 0) then
+						xyrad2 = xc**2 + yc**2
+						if ((xyrad2 .gt. outr2) .or. (xyrad2 .lt. inr2)) then
+							cycle
+						else
+							pt(1,nps) = x
+							pt(2,nps) = y
+							pt(3,nps) = 0.0
+							pt(4,nps) = 0.0
+							pt(5,nps) = 0.0
+							pt(6,nps) = 1.0
+							pt(7,nps) = 1.0
+							pt(8,nps) = qm
+							nps = nps + 1
+							cycle
+						endif
+					 endif
+					 
+					 ! Main routine (case 1 of 3)
 					 
 					 ! Find center of hexagonal tile this particle belongs to
 					 
@@ -1536,12 +1574,12 @@
 						if ((cxc)**2 + (cyc)**2 > nringsdiam2) then
 							cycle
 						end if
-					 else if ((hexgrid == 0) .and. (nrings < 7)) then! asymptotic circle condition for nrings < 7
+					 else if ((hexgrid == 0) .and. (nrings > 2 .and. nrings < 7)) then! asymptotic circle condition for nrings < 7
 						if ((cxc)**2 + (cyc)**2 > nr15d2) then
 							cycle
 						end if
 					 ! hexagonal boundary
-					 else if ((hexgrid == 1) .or. ((hexgrid == 0) .and. (nrings < 7))) then ! hexagon array
+					 else if ((hexgrid == 1) .or. ((hexgrid == 0) .and. (nrings < 3))) then ! hexagon array
 						if ((abs(Nxh) > nrings) .or. (abs(Nyh) > nrings) .or. (abs(Nxh-Nyh) > nrings)) then
 							cycle
 						end if
@@ -1573,11 +1611,30 @@
                   do iy=0, yppc-1
                      x = (ix + 0.5)/xppc + i - 1
                      y = (iy + 0.5)/yppc + j - 1 + noff
-					 ! cart from window center
+					  ! cart from window center
 					 xc = (x - cx)
 					 yc = (y - cy)
 					 
-					 ! Main routine (case 3 of 3)
+					 ! handle n_rings = 0
+					 if (nrings == 0) then
+						xyrad2 = xc**2 + yc**2
+						if ((xyrad2 .gt. outr2) .or. (xyrad2 .lt. inr2)) then
+							cycle
+						else
+							pt(1,nps) = x
+							pt(2,nps) = y
+							pt(3,nps) = 0.0
+							pt(4,nps) = 0.0
+							pt(5,nps) = 0.0
+							pt(6,nps) = 1.0
+							pt(7,nps) = 1.0
+							pt(8,nps) = qm
+							nps = nps + 1
+							cycle
+						endif
+					 endif
+					 
+					 ! Main routine (case 1 of 3)
 					 
 					 ! Find center of hexagonal tile this particle belongs to
 					 
@@ -1651,12 +1708,12 @@
 						if ((cxc)**2 + (cyc)**2 > nringsdiam2) then
 							cycle
 						end if
-					 else if ((hexgrid == 0) .and. (nrings < 7)) then! asymptotic circle condition for nrings < 7
+					 else if ((hexgrid == 0) .and. (nrings > 2 .and. nrings < 7)) then! asymptotic circle condition for nrings < 7
 						if ((cxc)**2 + (cyc)**2 > nr15d2) then
 							cycle
 						end if
 					 ! hexagonal boundary
-					 else if ((hexgrid == 1) .or. ((hexgrid == 0) .and. (nrings < 7))) then ! hexagon array
+					 else if ((hexgrid == 1) .or. ((hexgrid == 0) .and. (nrings < 3))) then ! hexagon array
 						if ((abs(Nxh) > nrings) .or. (abs(Nyh) > nrings) .or. (abs(Nxh-Nyh) > nrings)) then
 							cycle
 						end if
